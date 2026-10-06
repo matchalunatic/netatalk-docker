@@ -1,0 +1,35 @@
+# Example: one read-write share and one read-only share from a single host tree.
+#
+#   /srv/data          -> served read-only as "data"
+#   /srv/data/mac-afp  -> served read-write as "mac-files"
+#
+# The two host paths are independent bind mounts, so the read-only parent does
+# not constrain the read-write child.
+
+services:
+  netatalk:
+    image: matchalunatic/netatalk:latest
+    container_name: netatalk
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+    restart: unless-stopped
+    volumes:
+      - /srv/data/mac-afp:/mnt/afpshare          # read-write
+      - /srv/data:/mnt/afpbackup:ro              # read-only
+      - /var/run/dbus:/var/run/dbus
+    environment:
+      AFP_USER: talkuser
+      AFP_PASS: change-me
+      AFP_GROUP: atalk
+      AFP_UID: "13005"
+      INSECURE_AUTH: "1"                          # needed for classic Mac OS clients
+      SERVER_NAME: fileserver
+      TZ: Europe/Paris
+      # path:name:mode:ea, ';'-separated. mode is rw|ro. ea is
+      # sys|ad|samba|none and optional (default: auto-detect, which cannot
+      # probe a read-only mount, so set it explicitly there). Escape ';',
+      # ':' and '\' inside a path or name with a backslash.
+      NETATALK_SHARES: "/mnt/afpbackup:data:ro:sys;/mnt/afpshare:mac-files:rw"
+      # CNID database for the read-only volumes; must be on a writable mount.
+      NETATALK_RO_DBPATH: "/mnt/afpshare/.afpdb"
